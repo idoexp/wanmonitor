@@ -1,0 +1,28 @@
+<div class="eqLogic eqLogic-widget allowResize #custom_layout# #eqLogic_class# #class#" data-eqType="#eqType#" data-eqLogic_id="#id#" data-eqLogic_uid="#uid#" data-version="#version#" data-translate-category="#translate_category#" data-category="#category#" data-tags="#tags#" style="width: #width#;height: #height#;#style#; min-width: 152px; min-height: 212px;">
+  <center class="widget-name">
+    <span class="cmd refresh pull-right cursor" data-cmd_id="#refresh_id#">
+      <i class="fas fa-sync"></i>
+    </span>    
+    <span class="reportModeVisible">#name_display# <span class="object_name">#object_name#</span></span>
+    <a href="#eqLink#" class="reportModeHidden">#name_display# <span class="object_name">#object_name#</span></a>
+  </center>
+  <center>
+    <div class="wanmonitor">
+      <center><b>FAI :</b> #fai#</center>
+        <center><b>IP publique :</b> #ip_publique#</center>
+        <center><b>État :</b> #etat#</center>
+        <center><b>Derniers événements :</b><br>
+            <pre>#historique#</pre>
+        </center>
+    </div>
+  </center>
+</div>
+<script>
+  if ('#refresh_id#' != '') {
+    $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').on('click', function () {
+      jeedom.cmd.execute({id: '#refresh_id#'})
+    })
+  } else {
+   $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').remove()
+  }
+</script>

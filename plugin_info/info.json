@@ -1,0 +1,21 @@
+{
+    "id": "wanmonitor",
+    "name": "WAN Monitor",
+    "description": "Surveille l'IP publique pour détecter les changements de WAN (failover)",
+    "utilization": "Installez le plugin, et paramétrez les différents WAN.",
+    "link": {
+		"forum": "https://community.jeedom.com/#"
+	},
+    "licence": "AGPL",
+    "author": "IDO",
+    "require": "4.0",
+    "category": "monitoring",
+    "version": "0.1",
+    "hasDependency": false,
+    "hasOwnDeamon": false,
+	"maxDependancyInstallTime" : 0,
+	"changelog" : "https://github.com/idoexp/jeedom_edf_tempo#changelog",
+	"documentation" : "https://github.com/idoexp/jeedom_edf_tempo#edf-tempo-pour-jeedom",
+    "language": ["fr_FR"],
+    "compatibility": ["4.0","4.1","4.2"]
+}
