@@ -14,8 +14,8 @@
     "hasDependency": false,
     "hasOwnDeamon": false,
 	"maxDependancyInstallTime" : 0,
-	"changelog" : "https://github.com/idoexp/jeedom_edf_tempo#changelog",
-	"documentation" : "https://github.com/idoexp/jeedom_edf_tempo#edf-tempo-pour-jeedom",
+	"changelog" : "https://github.com/idoexp/wanmonitor#changelog",
+	"documentation" : "https://github.com/idoexp/wanmonitor#wanmonitor-pour-jeedom",
     "language": ["fr_FR"],
     "compatibility": ["4.0","4.1","4.2"]
 }

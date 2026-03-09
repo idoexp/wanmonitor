@@ -52,7 +52,7 @@ class wanmonitor extends eqLogic {
 
   // Fonction exécutée automatiquement après la sauvegarde (création ou mise à jour) de l'équipement
   public function postSave() {
-    $this->createCmd('Etat WAN', 'etat', 'info', 'string');
+    $this->createCmd('Etat WAN', 'etat', 'info', 'string', 1);
     $this->createCmd('FAI', 'fai', 'info', 'string');
     $this->createCmd('IP Publique', 'ip_publique', 'info', 'string');
     $this->createCmd('Historique', 'historique', 'info', 'string');
@@ -60,6 +60,7 @@ class wanmonitor extends eqLogic {
     $this->createCmd('Stat WAN2 (min)', 'stats_wan2', 'info', 'numeric');
     $this->createCmd('Action vers WAN2', 'action_wan2', 'action', 'other');
     $this->createCmd('Action retour WAN1', 'action_wan1', 'action', 'other');
+    $this->createCmd('Action coupure', 'action_down', 'action', 'other');
     $this->createCmd('Rafraîchir', 'refresh', 'action', 'other');
   }
 
@@ -73,8 +74,14 @@ class wanmonitor extends eqLogic {
   }
 
   public function getPublicIP(){
-    $ipPub = trim(shell_exec("curl -s --max-time 5 https://api.ipify.org"));
-    if (empty($ipPub)) {
+    $ch = curl_init('https://api.ipify.org');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    $ipPub = trim(curl_exec($ch));
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (empty($ipPub) || $httpCode != 200) {
       log::add('wanmonitor', 'error', 'Impossible de récupérer l\'IP publique');
       return null;
     }
@@ -83,35 +90,41 @@ class wanmonitor extends eqLogic {
 
   public function checkWanStatus() {
     $ipPub = $this->getPublicIP();
-    $wan1Ip = config::byKey('wan1ip', 'wanmonitor');
-    $wanActif = ($ipPub == $wan1Ip) ? 'WAN1' : 'WAN2';
     $lastWan = $this->getCmd(null, 'etat')->execCmd();
 
-    if ($wanActif == 'WAN1'){
+    if ($ipPub === null) {
+      $wanActif = 'DOWN';
+      $fai = 'Aucune connexion';
+    } elseif ($ipPub == config::byKey('wan1ip', 'wanmonitor')) {
+      $wanActif = 'WAN1';
       $fai = config::byKey('wan1name', 'wanmonitor', 'FAI 1');
     } else {
+      $wanActif = 'WAN2';
       $fai = config::byKey('wan2name', 'wanmonitor', 'FAI 2');
     }
 
-    log::add('wanmonitor', 'debug', 'Check Wan Status');
+    log::add('wanmonitor', 'debug', 'Check Wan Status - État : ' . $wanActif);
     if ($wanActif != $lastWan) {
-      $log = date('Y-m-d H:i:s') . " - Passage de $lastWan à $wanActif (IP: $ipPub)";
+      $ipLog = ($ipPub !== null) ? $ipPub : 'aucune';
+      $log = date('Y-m-d H:i:s') . " - Passage de $lastWan à $wanActif (IP: $ipLog)";
       $this->appendToHistory($log);
       $this->updateWanStats($lastWan);
 
-      if ($wanActif == 'WAN2') {
+      if ($wanActif == 'DOWN') {
+        $this->triggerCommand('action_down');
+        log::add('wanmonitor', 'warning', 'Coupure internet détectée');
+      } elseif ($wanActif == 'WAN2') {
         $this->triggerCommand('action_wan2');
         log::add('wanmonitor', 'debug', 'Action vers WAN2 déclenchée');
-        
       } elseif ($wanActif == 'WAN1') {
-        log::add('wanmonitor', 'debug', 'Action vers WAN1 déclenchée');
         $this->triggerCommand('action_wan1');
+        log::add('wanmonitor', 'debug', 'Action retour WAN1 déclenchée');
       }
       $this->checkAndUpdateCmd('etat', $wanActif);
     }
-    
+
     $this->checkAndUpdateCmd('fai', $fai);
-    $this->checkAndUpdateCmd('ip_publique', $ipPub);
+    $this->checkAndUpdateCmd('ip_publique', ($ipPub !== null) ? $ipPub : '-');
   }
 
   public function appendToHistory($text) {
@@ -125,7 +138,8 @@ class wanmonitor extends eqLogic {
     if (!in_array($wan, ['WAN1', 'WAN2'])) return;
     $cmd = $this->getCmd(null, 'stats_' . strtolower($wan));
     $current = intval($cmd->execCmd());
-    $this->checkAndUpdateCmd($cmd->getLogicalId(), $current + 5);
+    $delay = intval(config::byKey('refresh_delay', 'wanmonitor', 5));
+    $this->checkAndUpdateCmd($cmd->getLogicalId(), $current + $delay);
   }
 
 private function triggerCommand($logicalId) {
@@ -149,8 +163,7 @@ private function triggerCommand($logicalId) {
     $commandsToReplace = array(
     'ip_publique',
     'fai',
-    'etat',
-    'historique'
+    'etat'
     );
     // Parcourir les commandes à remplacer
     foreach ($commandsToReplace as $commandName) {
@@ -167,7 +180,7 @@ private function triggerCommand($logicalId) {
 
   }
 
-  private function createCmd($name, $logicalId, $type, $subtype) {
+  private function createCmd($name, $logicalId, $type, $subtype, $isHistorized = 0) {
     if ($this->getCmd(null, $logicalId)) return;
     $cmd = new wanmonitorCmd();
     $cmd->setLogicalId($logicalId);
@@ -176,7 +189,10 @@ private function triggerCommand($logicalId) {
     $cmd->setType($type);
     $cmd->setSubType($subtype);
     $cmd->setIsVisible(1);
-    $cmd->setDisplay('showOnDashboard', 1); 
+    $cmd->setDisplay('showOnDashboard', 1);
+    if ($isHistorized) {
+      $cmd->setIsHistorized(1);
+    }
     $cmd->save();
   }
 
@@ -192,7 +208,7 @@ class wanmonitorCmd extends cmd {
     switch ($this->getLogicalId()) {
       case 'refresh':
         $eqLogic->checkWanStatus();
-        $eqLogic->appendToHistory("Rafraîchissement manuel de l'état WAN");
+        $eqLogic->appendToHistory(date('Y-m-d H:i:s') . " - Rafraîchissement manuel de l'état WAN");
         break;
     }
     return null;

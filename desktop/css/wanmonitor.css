@@ -1,0 +1,175 @@
+/* WAN Monitor - Dashboard Tile Styles */
+
+:root {
+  --wan-color-wan1: #27ae60;
+  --wan-color-wan2: #e67e22;
+  --wan-color-down: #e74c3c;
+}
+
+/* Tuile */
+.wanmonitor-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px;
+  min-width: 180px;
+}
+
+/* Indicateur d'état */
+.wan-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.wan-status-WAN1 {
+  background: rgba(39, 174, 96, 0.15);
+}
+
+.wan-status-WAN2 {
+  background: rgba(230, 126, 34, 0.15);
+}
+
+.wan-status-DOWN {
+  background: rgba(231, 76, 60, 0.15);
+}
+
+.wan-status-label {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.wan-status-WAN1 .wan-status-label {
+  color: var(--wan-color-wan1);
+}
+
+.wan-status-WAN2 .wan-status-label {
+  color: var(--wan-color-wan2);
+}
+
+.wan-status-DOWN .wan-status-label {
+  color: var(--wan-color-down);
+}
+
+.wan-fai {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.wan-ip {
+  font-size: 12px;
+  font-family: monospace;
+  opacity: 0.8;
+}
+
+/* Barre timeline 24h */
+.wan-timeline-container {
+  padding: 4px 0;
+}
+
+.wan-timeline-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: rgba(128, 128, 128, 0.1);
+}
+
+.wan-seg {
+  min-width: 1px;
+  transition: opacity 0.2s;
+}
+
+.wan-seg:hover {
+  opacity: 0.8;
+}
+
+.wan-seg-wan1 {
+  background: var(--wan-color-wan1);
+}
+
+.wan-seg-wan2 {
+  background: var(--wan-color-wan2);
+}
+
+.wan-seg-down {
+  background: var(--wan-color-down);
+}
+
+.wan-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  opacity: 0.5;
+  margin-top: 2px;
+}
+
+/* Icône historique dans le header */
+div.eqLogic-widget .wan-history-btn {
+  margin-top: 5px;
+}
+
+div.eqLogic-widget .wan-history-btn i {
+  font-size: 12px !important;
+  cursor: pointer;
+}
+
+/* Points colorés (modale) */
+.wan-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.wan-dot-wan1 {
+  background: var(--wan-color-wan1);
+}
+
+.wan-dot-wan2 {
+  background: var(--wan-color-wan2);
+}
+
+.wan-dot-down {
+  background: var(--wan-color-down);
+}
+
+/* Modale - Bloc stats */
+.wan-stats-block {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+.wan-stats-grid {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.wan-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.wan-stat-label {
+  opacity: 0.7;
+}
+
+.wan-stat-value {
+  font-weight: 600;
+}
+
+.wan-history-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}

@@ -18,13 +18,18 @@
 require_once dirname(__FILE__) . '/../../../core/php/core.inc.php';
 
 function getPublicIP(){
-    $ipPub = trim(shell_exec("curl -s --max-time 5 https://api.ipify.org"));
-    if (empty($ipPub)) {
+    $ch = curl_init('https://api.ipify.org');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+    $ipPub = trim(curl_exec($ch));
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if (empty($ipPub) || $httpCode != 200) {
         log::add('wanmonitor', 'error', 'Impossible de récupérer l\'IP publique');
         return null;
     }
     log::add('wanmonitor', 'info', 'Récupération de l\'IP publique lors de l\'installation : ' . $ipPub);
-
     return $ipPub;
 }
 // Fonction exécutée automatiquement après l'installation du plugin
@@ -46,6 +51,15 @@ function wanmonitor_install() {
 
 // Fonction exécutée automatiquement après la mise à jour du plugin
 function wanmonitor_update() {
+    // Activer l'historisation sur la commande etat pour les installations existantes
+    foreach (eqLogic::byType('wanmonitor') as $eqLogic) {
+        $cmd = $eqLogic->getCmd(null, 'etat');
+        if (is_object($cmd) && $cmd->getIsHistorized() != 1) {
+            $cmd->setIsHistorized(1);
+            $cmd->save();
+            log::add('wanmonitor', 'info', 'Historisation activée sur la commande etat pour ' . $eqLogic->getName());
+        }
+    }
 }
 
 // Fonction exécutée automatiquement après la suppression du plugin

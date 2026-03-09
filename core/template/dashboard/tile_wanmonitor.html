@@ -1,28 +1,229 @@
-<div class="eqLogic eqLogic-widget allowResize #custom_layout# #eqLogic_class# #class#" data-eqType="#eqType#" data-eqLogic_id="#id#" data-eqLogic_uid="#uid#" data-version="#version#" data-translate-category="#translate_category#" data-category="#category#" data-tags="#tags#" style="width: #width#;height: #height#;#style#; min-width: 152px; min-height: 212px;">
+<div class="eqLogic eqLogic-widget allowResize #custom_layout# #eqLogic_class# #class#" data-eqType="#eqType#" data-eqLogic_id="#id#" data-eqLogic_uid="#uid#" data-version="#version#" data-translate-category="#translate_category#" data-category="#category#" data-tags="#tags#" style="width:#width#;height:#height#;#style#;min-width:200px;min-height:160px;">
   <center class="widget-name">
     <span class="cmd refresh pull-right cursor" data-cmd_id="#refresh_id#">
       <i class="fas fa-sync"></i>
-    </span>    
+    </span>
+    <span class="cmd wan-history-btn pull-right cursor" title="Historique WAN">
+      <i class="fas fa-calendar-alt"></i>
+    </span>
     <span class="reportModeVisible">#name_display# <span class="object_name">#object_name#</span></span>
     <a href="#eqLink#" class="reportModeHidden">#name_display# <span class="object_name">#object_name#</span></a>
   </center>
   <center>
-    <div class="wanmonitor">
-      <center><b>FAI :</b> #fai#</center>
-        <center><b>IP publique :</b> #ip_publique#</center>
-        <center><b>État :</b> #etat#</center>
-        <center><b>Derniers événements :</b><br>
-            <pre>#historique#</pre>
-        </center>
+    <div class="wanmonitor-tile">
+      <div class="wan-status wan-status-#etat#">
+        <span class="wan-status-label">#etat#</span>
+        <span class="wan-fai">#fai#</span>
+      </div>
+      <div class="wan-ip">#ip_publique#</div>
+      <div class="wan-timeline-container">
+        <div class="wan-timeline-bar" id="wanTimeline_#uid#"></div>
+        <div class="wan-timeline-labels">
+          <span>-24h</span>
+          <span>Maint.</span>
+        </div>
+      </div>
     </div>
   </center>
 </div>
+<link href="/plugins/wanmonitor/desktop/css/wanmonitor.css?v=20260309" rel="stylesheet">
 <script>
+(function(){
+  var uid = '#uid#';
+  var eqLogicId = '#id#';
+  var $widget = $('.eqLogic[data-eqLogic_uid=' + uid + ']');
+
+  // Refresh
   if ('#refresh_id#' != '') {
-    $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').on('click', function () {
-      jeedom.cmd.execute({id: '#refresh_id#'})
-    })
+    $widget.find('.refresh').on('click', function(){
+      jeedom.cmd.execute({id: '#refresh_id#'});
+    });
   } else {
-   $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').remove()
+    $widget.find('.refresh').remove();
   }
+
+  // Historique
+  $widget.find('.wan-history-btn').on('click', function(e){
+    e.stopPropagation();
+    loadWanHistory(function(data){ showHistoryModal(data); });
+  });
+
+  // Charger la timeline au rendu
+  loadWanHistory(function(data){ renderTimeline(data); });
+
+  function loadWanHistory(callback) {
+    $.ajax({
+      type: 'POST',
+      url: 'plugins/wanmonitor/core/ajax/wanmonitor.ajax.php',
+      data: { action: 'getWanHistory', eqLogic_id: eqLogicId, ajax: 1 },
+      dataType: 'json',
+      global: false,
+      success: function(data) {
+        if (data.state != 'ok') {
+          console.warn('WanMonitor: erreur chargement historique');
+          return;
+        }
+        callback(data.result);
+      },
+      error: function() {
+        console.warn('WanMonitor: erreur AJAX');
+      }
+    });
+  }
+
+  function renderTimeline(data) {
+    var $bar = $widget.find('#wanTimeline_' + uid);
+    $bar.empty();
+
+    var now = new Date();
+    var start = new Date(now.getTime() - 24*60*60*1000);
+    var totalMs = 24*60*60*1000;
+    var segments = buildSegments(data.history24h, data.initialState, data.current, start, now);
+
+    for (var i = 0; i < segments.length; i++) {
+      var seg = segments[i];
+      var widthPct = ((seg.end - seg.start) / totalMs * 100).toFixed(2);
+      if (widthPct <= 0) continue;
+      var colorClass = getSegClass(seg.value);
+      var label = getWanLabel(seg.value, data);
+      $bar.append('<div class="wan-seg ' + colorClass + '" style="width:' + widthPct + '%" title="' + seg.value + ' (' + label + ')"></div>');
+    }
+  }
+
+  function buildSegments(history, initialState, currentState, start, end) {
+    var segments = [];
+
+    if (!history || history.length === 0) {
+      segments.push({start: start.getTime(), end: end.getTime(), value: currentState || 'WAN1'});
+      return segments;
+    }
+
+    var points = [];
+    for (var i = 0; i < history.length; i++) {
+      points.push({
+        ts: new Date(history[i].datetime.replace(' ', 'T')).getTime(),
+        value: history[i].value
+      });
+    }
+
+    var cursor = start.getTime();
+    var curValue = initialState || points[0].value;
+
+    for (var i = 0; i < points.length; i++) {
+      if (points[i].ts > cursor) {
+        segments.push({start: cursor, end: points[i].ts, value: curValue});
+        cursor = points[i].ts;
+      }
+      curValue = points[i].value;
+    }
+    if (cursor < end.getTime()) {
+      segments.push({start: cursor, end: end.getTime(), value: curValue});
+    }
+
+    return segments;
+  }
+
+  function formatDuration(seconds) {
+    if (seconds < 60) return seconds + 's';
+    var d = Math.floor(seconds / 86400);
+    var h = Math.floor((seconds % 86400) / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var parts = [];
+    if (d > 0) parts.push(d + 'j');
+    if (h > 0) parts.push(h + 'h');
+    if (m > 0) parts.push(m + 'min');
+    return parts.join(' ') || '0min';
+  }
+
+  function showHistoryModal(data) {
+    var modalId = 'md_wanHistory_' + uid;
+    var $modal = $('#' + modalId);
+    if ($modal.length === 0) {
+      $('body').append(
+        '<div class="modal fade" id="' + modalId + '" tabindex="-1" role="dialog">' +
+        '<div class="modal-dialog" style="width:460px;">' +
+        '<div class="modal-content" style="border-radius:8px;overflow:hidden;">' +
+        '<div class="modal-header" style="padding:12px 15px;">' +
+        '<button type="button" class="close" data-dismiss="modal" style="cursor:pointer;"><span>&times;</span></button>' +
+        '<h4 class="modal-title" style="font-size:15px;"><i class="fas fa-calendar-alt"></i> Historique WAN</h4>' +
+        '</div>' +
+        '<div class="modal-body" id="' + modalId + '_body" style="padding:15px;max-height:500px;overflow-y:auto;"></div>' +
+        '</div></div></div>'
+      );
+      $modal = $('#' + modalId);
+    }
+
+    renderModalContent(modalId, data, '30d');
+
+    // Bind du select de période
+    $modal.off('change', '.wan-period-select').on('change', '.wan-period-select', function(){
+      renderModalContent(modalId, data, $(this).val());
+    });
+
+    $modal.modal('show');
+  }
+
+  function renderModalContent(modalId, data, period) {
+    var allStats = data.stats || {};
+    var stats = allStats[period] || {};
+    var periodLabels = {'24h': 'Derni\u00e8res 24 heures', '30d': '30 derniers jours', 'year': 'Ann\u00e9e en cours'};
+
+    var html = '';
+
+    // Sélecteur de période
+    html += '<div style="margin-bottom:12px;">';
+    html += '<select class="wan-period-select form-control input-sm" style="width:auto;display:inline-block;font-size:12px;">';
+    html += '<option value="24h"' + (period === '24h' ? ' selected' : '') + '>Derni\u00e8res 24 heures</option>';
+    html += '<option value="30d"' + (period === '30d' ? ' selected' : '') + '>30 derniers jours</option>';
+    html += '<option value="year"' + (period === 'year' ? ' selected' : '') + '>Ann\u00e9e en cours</option>';
+    html += '</select></div>';
+
+    // Compteurs de durée
+    html += '<div class="wan-stats-block">';
+    html += '<div class="wan-stats-grid">';
+    html += '<div class="wan-stat-item"><span class="wan-dot wan-dot-wan1"></span><span class="wan-stat-label">' + data.wan1name + '</span><span class="wan-stat-value">' + formatDuration(stats.WAN1 || 0) + '</span></div>';
+    html += '<div class="wan-stat-item"><span class="wan-dot wan-dot-wan2"></span><span class="wan-stat-label">' + data.wan2name + '</span><span class="wan-stat-value">' + formatDuration(stats.WAN2 || 0) + '</span></div>';
+    html += '<div class="wan-stat-item"><span class="wan-dot wan-dot-down"></span><span class="wan-stat-label">Coupure</span><span class="wan-stat-value">' + formatDuration(stats.DOWN || 0) + '</span></div>';
+    html += '</div></div>';
+
+    // Liste des événements (tous)
+    html += '<div class="wan-history-title">Changements d\'\u00e9tat</div>';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+    html += '<thead><tr><th style="padding:6px;text-align:left;">Date/Heure</th><th style="padding:6px;text-align:left;">Basculement</th></tr></thead><tbody>';
+
+    var history = (data.historyAll || []).slice().reverse();
+    if (history.length === 0) {
+      html += '<tr><td colspan="2" style="padding:12px;text-align:center;opacity:0.6;">Aucun changement enregistr\u00e9</td></tr>';
+    }
+    for (var i = 0; i < history.length; i++) {
+      var wan = history[i].value;
+      var dotClass = getDotClass(wan);
+      var label = getWanLabel(wan, data);
+      html += '<tr style="border-bottom:1px solid rgba(128,128,128,0.1);">';
+      html += '<td style="padding:6px;">' + history[i].datetime + '</td>';
+      html += '<td style="padding:6px;"><span class="wan-dot ' + dotClass + '"></span> ' + wan + ' <span style="opacity:0.6;">(' + label + ')</span></td></tr>';
+    }
+    html += '</tbody></table>';
+
+    $('#' + modalId + '_body').html(html);
+  }
+
+  function getSegClass(value) {
+    if (value === 'WAN1') return 'wan-seg-wan1';
+    if (value === 'WAN2') return 'wan-seg-wan2';
+    return 'wan-seg-down';
+  }
+
+  function getDotClass(value) {
+    if (value === 'WAN1') return 'wan-dot-wan1';
+    if (value === 'WAN2') return 'wan-dot-wan2';
+    return 'wan-dot-down';
+  }
+
+  function getWanLabel(value, data) {
+    if (value === 'WAN1') return data.wan1name;
+    if (value === 'WAN2') return data.wan2name;
+    return 'Coupure';
+  }
+})();
 </script>

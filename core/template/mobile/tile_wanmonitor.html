@@ -1,27 +1,85 @@
-<div class="eqLogic eqLogic-widget allowResize #custom_layout# #eqLogic_class# #class#" data-eqType="#eqType#" data-eqLogic_id="#id#" data-eqLogic_uid="#uid#" data-version="#version#" data-translate-category="#translate_category#" data-category="#category#" data-tags="#tags#" style="width: #width#;height: #height#;#style#; min-width: 152px; min-height: 212px;">
+<div class="eqLogic eqLogic-widget allowResize #custom_layout# #eqLogic_class# #class#" data-eqType="#eqType#" data-eqLogic_id="#id#" data-eqLogic_uid="#uid#" data-version="#version#" data-translate-category="#translate_category#" data-category="#category#" data-tags="#tags#" style="width:#width#;height:#height#;#style#;min-width:152px;min-height:140px;">
   <center class="widget-name">
     <span class="cmd refresh pull-right cursor" data-cmd_id="#refresh_id#">
       <i class="fas fa-sync"></i>
-    </span>    
+    </span>
+    <span class="cmd wan-history-btn pull-right cursor" title="Historique WAN">
+      <i class="fas fa-calendar-alt"></i>
+    </span>
     <span class="reportModeVisible">#name_display# <span class="object_name">#object_name#</span></span>
     <a href="#eqLink#" class="reportModeHidden">#name_display# <span class="object_name">#object_name#</span></a>
   </center>
   <center>
-    <div class="wanmonitor">
-        <center><b>IP publique :</b> #ip_publique#</center>
-        <center><b>État :</b> #etat#</center>
-        <center><b>Derniers événements :</b><br>
-            <pre>#historique#</pre>
-        </center>
+    <div class="wanmonitor-tile">
+      <div class="wan-status wan-status-#etat#">
+        <span class="wan-status-label">#etat#</span>
+        <span class="wan-fai">#fai#</span>
+      </div>
+      <div class="wan-ip">#ip_publique#</div>
     </div>
   </center>
 </div>
+<link href="/plugins/wanmonitor/desktop/css/wanmonitor.css?v=20260309" rel="stylesheet">
 <script>
+(function(){
+  var uid = '#uid#';
+  var eqLogicId = '#id#';
+  var $widget = $('.eqLogic[data-eqLogic_uid=' + uid + ']');
+
   if ('#refresh_id#' != '') {
-    $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').on('click', function () {
-      jeedom.cmd.execute({id: '#refresh_id#'})
-    })
+    $widget.find('.refresh').on('click', function(){
+      jeedom.cmd.execute({id: '#refresh_id#'});
+    });
   } else {
-   $('.eqLogic[data-eqLogic_uid=#uid#] .refresh').remove()
+    $widget.find('.refresh').remove();
   }
+
+  $widget.find('.wan-history-btn').on('click', function(e){
+    e.stopPropagation();
+    $.ajax({
+      type: 'POST',
+      url: 'plugins/wanmonitor/core/ajax/wanmonitor.ajax.php',
+      data: { action: 'getWanHistory', eqLogic_id: eqLogicId, ajax: 1 },
+      dataType: 'json',
+      global: false,
+      success: function(data) {
+        if (data.state != 'ok') return;
+        var d = data.result;
+        var modalId = 'md_wanHistory_' + uid;
+        var $modal = $('#' + modalId);
+        if ($modal.length === 0) {
+          $('body').append(
+            '<div class="modal fade" id="' + modalId + '" tabindex="-1" role="dialog">' +
+            '<div class="modal-dialog" style="width:90%;max-width:400px;">' +
+            '<div class="modal-content" style="border-radius:8px;overflow:hidden;">' +
+            '<div class="modal-header" style="padding:12px 15px;">' +
+            '<button type="button" class="close" data-dismiss="modal" style="cursor:pointer;"><span>&times;</span></button>' +
+            '<h4 class="modal-title" style="font-size:15px;"><i class="fas fa-calendar-alt"></i> Historique WAN</h4>' +
+            '</div>' +
+            '<div class="modal-body" id="' + modalId + '_body" style="padding:15px;max-height:400px;overflow-y:auto;"></div>' +
+            '</div></div></div>'
+          );
+          $modal = $('#' + modalId);
+        }
+
+        function getDotClass(v) { return v === 'WAN1' ? 'wan-dot-wan1' : v === 'WAN2' ? 'wan-dot-wan2' : 'wan-dot-down'; }
+        function getLabel(v) { return v === 'WAN1' ? d.wan1name : v === 'WAN2' ? d.wan2name : 'Coupure'; }
+
+        var html = '<table style="width:100%;font-size:12px;">';
+        var history = (d.historyAll || []).slice().reverse();
+        if (history.length === 0) {
+          html += '<tr><td style="padding:12px;text-align:center;opacity:0.6;">Aucun changement</td></tr>';
+        }
+        for (var i = 0; i < history.length; i++) {
+          var wan = history[i].value;
+          html += '<tr><td style="padding:4px;">' + history[i].datetime + '</td>';
+          html += '<td style="padding:4px;"><span class="wan-dot ' + getDotClass(wan) + '"></span> ' + wan + '</td></tr>';
+        }
+        html += '</table>';
+        $('#' + modalId + '_body').html(html);
+        $modal.modal('show');
+      }
+    });
+  });
+})();
 </script>
