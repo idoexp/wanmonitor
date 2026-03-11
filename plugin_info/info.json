@@ -1,10 +1,10 @@
 {
     "id": "wanmonitor",
     "name": "WAN Monitor",
-    "description": "Surveille l'IP publique pour détecter les changements de WAN (failover)",
-    "utilization": "Installez le plugin, et paramétrez les différents WAN.",
+    "description": "Surveille votre connexion internet en vérifiant l'IP publique à intervalle régulier. Détecte automatiquement les basculements WAN (failover) et les coupures totales (DOWN). Historise chaque changement d'état pour visualiser la fiabilité de votre connexion. Idéal pour piloter l'allumage automatique d'une ligne de secours (ex: Starlink sur prise connectée) via des scénarios Jeedom.",
+    "utilization": "Installez le plugin, renseignez l'IP publique fixe de chaque ligne internet (WAN1 principale, WAN2 secours) ainsi que le nom de chaque FAI dans la configuration du plugin. Créez ensuite un équipement et activez-le. Le plugin vérifiera automatiquement votre IP publique selon l'intervalle configuré (1 à 30 min) et mettra à jour l'état (WAN1, WAN2 ou DOWN). Les commandes d'état sont utilisables dans vos scénarios Jeedom pour automatiser des actions en cas de coupure (allumer une prise, envoyer une notification, etc.).",
     "link": {
-		"forum": "https://community.jeedom.com/#"
+		"forum": "https://community.jeedom.com/t/wan-monitor-surveillance-de-connexion-internet-avec-failover/147916"
 	},
     "licence": "AGPL",
     "author": "IDO",
